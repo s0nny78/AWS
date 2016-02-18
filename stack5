@@ -1,0 +1,358 @@
+{
+"AWSTemplateFormatVersion" : "2010-09-09",
+"Description" : "OK TAMER",
+"Resources" :
+ {
+
+      "ClojureCollector1" : {
+         "Type" : "AWS::EC2::Instance",
+         "Properties" : {
+            "InstanceType" : "m1.small",
+            "AvailabilityZone" : "us-east-1a",
+            "ImageId": "ami-b2e3c6d8",
+            "KeyName" : "ec2key",
+            "Tags": [
+                        {
+                            "Value": "true",
+                            "Key": "ansible"
+                        }
+            ],
+            "SecurityGroups": [ { "Ref" : "InstanceSecurityGroup" } ]
+          }
+      },
+
+      "ClojureCollector2" : {
+         "Type" : "AWS::EC2::Instance",
+         "Properties" : {
+            "InstanceType" : "m1.small",
+            "AvailabilityZone" : "us-east-1b",
+            "ImageId": "ami-b2e3c6d8",
+            "KeyName" : "ec2key",
+            "Tags": [
+                        {
+                            "Value": "true",
+                            "Key": "ansible"
+                        }
+            ],
+            "SecurityGroups": [ { "Ref" : "InstanceSecurityGroup" } ]
+          }
+      },
+
+
+       "AnsibleServer" : {
+         "Type" : "AWS::EC2::Instance",
+         "Properties" : {
+            "InstanceType" : "t2.micro",
+            "AvailabilityZone" : "us-east-1a",
+            "ImageId": "ami-8fcee4e5",
+            "KeyName" : "ec2key",
+            "IamInstanceProfile" : {"Ref" : "FInstanceProfile" },
+            "SecurityGroups": [ { "Ref" : "AnsibleSG" } ],
+
+            "UserData"       : { "Fn::Base64" : { "Fn::Join" : ["", [
+             "#!/bin/bash \n",
+             "sudo yum update -y \n",
+             "sudo pip install ansible \n",
+             "sudo yum install git -y \n",
+             "sudo mkdir /etc/ansible \n",
+             "sudo mkdir /etc/ansible/playbooks \n",
+             "sudo git clone https://github.com/s0nny78/ansible-playbooks.git /etc/ansible/playbooks/\n",
+             "sudo chown -R ec2-user /etc/ansible/ \n",
+             "sudo alias ansible='/usr/local/bin/ansible' \n",
+             "sudo alias ansible-playbook='/usr/local/bin/ansible-playbook' \n",
+             "sudo aws s3 cp s3://tadjer/ec2key.pem /home/ec2-user/.ssh/ \n",
+             "chmod 400 /home/ec2-user/.ssh/ec2key.pem \n",
+             "mv /home/ec2-user/.ssh/ec2key.pem /home/ec2-user/.ssh/id_rsa \n",
+             "sudo chown ec2-user /home/ec2-user/.ssh/id_rsa \n",
+             "printf 'Host *\n   StrictHostKeyChecking no' > /home/ec2-user/.ssh/config \n",
+             "sudo chown ec2-user /home/ec2-user/.ssh/config \n",
+             "sudo chmod 400 /home/ec2-user/.ssh/config \n",
+             "/usr/local/bin/ansible-playbook /etc/ansible/playbooks/host/host.yml \n"
+
+            ]]}}
+          }
+          },
+
+
+
+      "InstanceSecurityGroup" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "ssh et http",
+         "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "22",
+                        "ToPort": "22"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "80",
+                        "ToPort": "80"
+                    },
+                    {
+                        "IpProtocol": "tcp",
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "8080",
+                        "ToPort": "8080"
+                    }
+
+          ]
+       }
+      },
+
+      "AnsibleSG" : {
+      "Type" : "AWS::EC2::SecurityGroup",
+      "Properties" : {
+        "GroupDescription" : "ssh",
+         "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "CidrIp": "0.0.0.0/0",
+                        "FromPort": "22",
+                        "ToPort": "22"
+                    }
+
+          ]
+       }
+      },
+
+
+
+    "IPAddress1" : {
+      "Type" : "AWS::EC2::EIP"
+    },
+
+    "IPAddress2" : {
+      "Type" : "AWS::EC2::EIP"
+    },
+
+    "IPAddress0" : {
+      "Type" : "AWS::EC2::EIP"
+    },
+
+    "IPAssoc1" : {
+      "Type" : "AWS::EC2::EIPAssociation",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "ClojureCollector1" },
+        "EIP" : { "Ref" : "IPAddress1" }
+      }
+    },
+
+    "IPAssoc2" : {
+      "Type" : "AWS::EC2::EIPAssociation",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "ClojureCollector2" },
+        "EIP" : { "Ref" : "IPAddress2" }
+      }
+    },
+
+    "IPAssoc0" : {
+      "Type" : "AWS::EC2::EIPAssociation",
+      "Properties" : {
+        "InstanceId" : { "Ref" : "AnsibleServer" },
+        "EIP" : { "Ref" : "IPAddress0" }
+      }
+    },
+
+
+    "FAccessRole" : {
+    "Type"  : "AWS::IAM::Role",
+    "Properties" : {
+        "AssumeRolePolicyDocument" : {
+            "Statement" : [ {
+                "Effect" : "Allow",
+                "Principal" : {
+                    "Service" : [ "ec2.amazonaws.com" ]
+                },
+                "Action" : [ "sts:AssumeRole" ]
+            } ]
+        },
+        "Path" : "/"
+    }
+  },
+
+  "FRolePolicies" : {
+    "Type" : "AWS::IAM::Policy",
+    "Properties" : {
+        "PolicyName" : "faccess",
+        "PolicyDocument" : {
+            "Statement" : [ {
+                "Effect" : "Allow",
+                "NotAction" : "iam:*",
+                "Resource" : "*"
+            }]
+        },
+        "Roles" : [ { "Ref" : "FAccessRole" } ]
+    }
+  },
+
+  "FInstanceProfile" : {
+    "Type" : "AWS::IAM::InstanceProfile",
+    "Properties" : {
+        "Path" : "/",
+        "Roles" : [ { "Ref" : "FAccessRole" } ]
+    }
+  },
+
+
+  "ElasticLoadBalancer" : {
+  "Type" : "AWS::ElasticLoadBalancing::LoadBalancer",
+  "Properties" : {
+    "AvailabilityZones" : { "Fn::GetAZs" : "" },
+    "Instances" : [ { "Ref" : "ClojureCollector1" },{ "Ref" : "ClojureCollector2" } ],
+    "Listeners": [
+    {
+      "LoadBalancerPort": "8080",
+      "InstancePort": "8080",
+      "Protocol": "HTTP"
+    },
+    {
+      "LoadBalancerPort": "8080",
+      "InstancePort": "8080",
+      "Protocol": "HTTP"
+    }
+    ],
+    "HealthCheck": {
+      "Target": "HTTP:8080/",
+      "HealthyThreshold": "3",
+      "UnhealthyThreshold": "5",
+      "Interval": "30",
+      "Timeout": "5"
+    },
+    "ConnectionDrainingPolicy": {
+      "Enabled" : "true",
+      "Timeout" : "60"
+  
+   }
+  },
+
+  "LaunchConfig" : {
+   "Type" : "AWS::AutoScaling::LaunchConfiguration",
+   "Properties" : {
+      "KeyName" : "ec2key",
+      "ImageId" : "ami-b2e3c6d8",
+      "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
+      "InstanceType" : "m1.small"
+   }
+  },
+
+  "WebServerGroup" : {
+   "Type" : "AWS::AutoScaling::AutoScalingGroup",
+   "Properties" : {
+      "AvailabilityZones" : { "Fn::GetAZs" : "" },
+      "LaunchConfigurationName" : { "Ref" : "LaunchConfig" },
+      "MinSize" : "2",
+      "MaxSize" : "4",
+      "LoadBalancerNames" : [ { "Ref" : "ElasticLoadBalancer" } ],
+      "Tags" : [ {
+         "Key" : "ansible",
+         "Value" : "true",
+         "PropagateAtLaunch" : "true"
+      } ],
+      "MetricsCollection": [
+         {
+            "Granularity": "1Minute"
+         }
+      ]
+    }
+  },
+
+"MySNSTopic" : {
+    "Type" : "AWS::SNS::Topic",
+    "Properties" : {
+        "Subscription" : [ {
+            "Endpoint" : "sonny.tadjer@gmail.com",
+            "Protocol" : "email"
+        } ]
+    }
+},
+
+  "CPUAlarm" : {
+  "Type" : "AWS::CloudWatch::Alarm",
+  "Properties" : {
+    "AlarmDescription" : "CPU alarm for my instance",
+    "AlarmActions" : [ { "Ref" : "MySNSTopic" } ],
+    "MetricName" : "CPUUtilization",
+    "Namespace" : "AWS/EC2",
+    "Statistic" : "Average",
+    "Period" : "60",
+    "EvaluationPeriods" : "3",
+    "Threshold" : "90",
+    "ComparisonOperator" : "GreaterThanThreshold",
+    "Dimensions" : [ {
+      "Name" : "InstanceId",
+      "Value" : { "Ref" : "ClojureCollector1" }
+      } ]
+    }
+  }
+
+
+
+  },
+
+    "Outputs" : {
+    "InstanceId" : {
+      "Description" : "InstanceId of the newly created EC2 instance",
+      "Value" : { "Ref" : "ClojureCollector1" }
+    },
+    "InstanceId2" : {
+      "Description" : "InstanceId of the newly created EC2 instance",
+      "Value" : { "Ref" : "ClojureCollector2" }
+    },
+
+    "InstanceId0" : {
+      "Description" : "InstanceId of the newly created EC2 instance",
+      "Value" : { "Ref" : "AnsibleServer" }
+    },
+
+    "PublicDNS" : {
+      "Description" : "Public DNSName of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "ClojureCollector1", "PublicDnsName" ] }
+    },
+    "PublicDNS2" : {
+      "Description" : "Public DNSName of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "ClojureCollector2", "PublicDnsName" ] }
+    },
+
+    "PublicDNS0" : {
+      "Description" : "Public DNSName of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "AnsibleServer", "PublicDnsName" ] }
+    },
+
+    "PublicIP" : {
+      "Description" : "Public IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "ClojureCollector1", "PublicIp" ] }
+    },
+    "PublicIP2" : {
+      "Description" : "Public IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "ClojureCollector2", "PublicIp" ] }
+    },
+    "PublicIP0" : {
+      "Description" : "Public IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "AnsibleServer", "PublicIp" ] }
+    },
+
+    "PrivateIP" : {
+      "Description" : "Private IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "ClojureCollector1", "PrivateIp" ] }
+    },
+    "PrivateIP2" : {
+      "Description" : "Private IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "ClojureCollector2", "PrivateIp" ] }
+    },
+    "PrivateIP0" : {
+      "Description" : "Private IP address of the newly created EC2 instance",
+      "Value" : { "Fn::GetAtt" : [ "AnsibleServer", "PrivateIp" ] }
+    },
+
+    "BackupLoadBalancerDNSName" : {
+    "Description": "The DNSName of the backup load balancer",
+    "Value" : { "Fn::GetAtt" : [ "ElasticLoadBalancer", "DNSName" ]}
+  }
+
+  }
+
+}

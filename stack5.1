@@ -271,7 +271,7 @@
       "Type" : "AWS::SNS::Topic",
         "Properties" : {
           "Subscription" : [ {
-            "Endpoint" : "sonny.tadjer@gmail.com",
+            "Endpoint" : "nospam@gmail.com",
             "Protocol" : "email"
           } ]
         }
@@ -286,7 +286,7 @@
           "Namespace" : "AWS/EC2",
           "Statistic" : "Average",
           "Period" : "60",
-          "EvaluationPeriods" : "3",
+          "EvaluationPeriods" : "10",
           "Threshold" : "70",
           "ComparisonOperator" : "GreaterThanThreshold",
           "Dimensions" : [ {

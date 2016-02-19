@@ -29,7 +29,7 @@ Some outputs to retreive information easily
   
 ### How to :
 ```sh
-aws cloudformation create-stack --stack-name suiton --capabilities CAPABILITY_IAM --template-body stack5.1
+aws cloudformation create-stack --stack-name suiton --capabilities CAPABILITY_IAM --template-body stack5.2.json
 ```
 
 ### Requierements

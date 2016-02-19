@@ -3,7 +3,7 @@
 ### Description
 The goal of this stack is to obtain an ansible server and a webserver fully redundant with alerting and scalling
 here is the code of my playbooks :
-[Ansible-playbooks](https://github.com/sonny78/ansible-playbooks)
+[Ansible-playbooks](https://github.com/s0nny78/ansible-playbooks)
 Only host and tomcat are used
 
 1 EC2 instance (AnsibleServer) with :

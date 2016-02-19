@@ -24,7 +24,10 @@ The goal of this stack is to obtain an ansible server and a webserver fully redu
 Some outputs to retreive information easily
 
   
-  
+### How to :
+```sh
+aws cloudformation create-stack --stack-name suiton --capabilities CAPABILITY_IAM --template-body stack5.1
+```
 
 ### Requierements
 You will need a keypair named ec2key to do that

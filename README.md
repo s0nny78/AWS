@@ -186,15 +186,13 @@ CPU > 70%
 
 And finally objects/variable to retreive from the stack console :
 ```sh
-
-
-```
 "Outputs" : {
 "PrivateIP" : {
        "Description" : "Private IP address of the newly created EC2 instance",
        "Value" : { "Fn::GetAtt" : [ "ClojureCollector1", "PrivateIp" ] }
      },
 }
+```
 
 ### Requierements
 You will need a keypair named ec2key to do that

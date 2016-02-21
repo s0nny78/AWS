@@ -18,7 +18,7 @@ Only host and tomcat are used
 
 1 ELB with all ClojureCollectorX :
   listen and redirect to : 80 & 8080
-  HealthCheck : 5*30sec -> Service Out; 3*30sec -> InService
+  HealthCheck : 5x30sec -> Service Out; 3x30sec -> InService
 
 1 Autoscaling group for ClojureCollectorX :
   same flavor as ClojureCollectorX
@@ -28,9 +28,173 @@ Some outputs to retreive information easily
 
   
 ### How to :
+
+To launch the stack with IAM capabilities :
 ```sh
 aws cloudformation create-stack --stack-name suiton --capabilities CAPABILITY_IAM --template-body stack5.2.json
 ```
+
+After it is launched, you will have to connect to ansible-server and deploy the playbook tomcat8 (which takes around 5 min to complete)
+```sh
+ansible-playbook /etc/ansible/playbooks/tomcat/tomcat.yml
+```
+
+You can try the autoscaling with stress on the hosts :
+```sh
+apt-get install stress
+```
+
+and then :
+```sh
+stress -c 8
+```
+If you want to know more about it :
+http://www.cyberciti.biz/faq/stress-test-linux-unix-server-with-stress-ng/
+
+
+### Comments :
+Create an 3 instances with :
+```sh
+AWS::EC2::Instance
+```
+
+Define bootstrapp : 
+```sh
+UserData
+```
+What it does :
+Install and configure ansible
+Install git and DL my playbooks
+DL the ssh key and configure sshd to ansible
+Deploy the playbook host to have the new list with client
+Deploy the playbook tomcat to install it to clients (currently not working)
+
+
+2 SG created, one for Ansible server (22) and the other for webapps (22 ssh, 80 http and 8080 default tomcat port)
+```sh
+AWS::EC2::SecurityGroup
+SecurityGroupIngress -> CidrIp": "0.0.0.0/0 (open to the world, this is bad and I should feel bad)
+```
+
+When you create an EIP, you should associate it
+```sh
+"IPAddress1" : {
+      "Type" : "AWS::EC2::EIP"
+      },
+
+"IPAssoc1" : {
+      "Type" : "AWS::EC2::EIPAssociation",
+        "Properties" : {
+          "InstanceId" : { "Ref" : "ClojureCollector1" },
+          "EIP" : { "Ref" : "IPAddress1" }
+        }
+      },
+```
+
+We do need an IAM new profile and role which will have a policy with full rights except IAM 
+
+```sh
+"PolicyDocument" : {
+            "Statement" : [ {
+                "Effect" : "Allow",
+                "NotAction" : "iam:*",
+                "Resource" : "*"
+            }]
+          },
+```
+
+Creation of an ELB, which will forward the port 80 and 8080 
+```sh
+"Listeners": [
+          {
+          "LoadBalancerPort": "8080",
+          "InstancePort": "8080",
+          "Protocol": "HTTP"
+          },
+```
+
+and check the health of 8080 only, can be improved to put clojure modul instead of /
+```sh
+ "HealthCheck": {
+        "Target": "HTTP:8080/",
+        "HealthyThreshold": "3",
+        "UnhealthyThreshold": "5",
+        "Interval": "30",
+        "Timeout": "5"
+        },
+```
+3x30 secondes to be checked as healthy
+5x30 secondes to be checked as unhealthy 
+5 secondes of timeout to receive and answer for each Threshold
+
+
+Define the metadata of the new instance
+```sh
+"LaunchConfig" : {
+      "Type" : "AWS::AutoScaling::LaunchConfiguration",
+        "Properties" : {
+        "KeyName" : "ec2key",
+        "ImageId" : "ami-b2e3c6d8",
+        "SecurityGroups" : [ { "Ref" : "InstanceSecurityGroup" } ],
+        "InstanceType" : "m1.small"
+        }
+      },
+```
+
+Define the autoscaling group, with limit for number of instances, where to put them (ELB) and to give them tag
+````sh
+AWS::AutoScaling::AutoScalingGroup
+```
+
+Define how the autoscaling group will increase :
+```sh
+ "ScaleUpPolicy" : {
+      "Type" : "AWS::AutoScaling::ScalingPolicy",
+        "Properties" : {
+        "AdjustmentType" : "ChangeInCapacity",
+        "AutoScalingGroupName" : { "Ref" : "WebServerGroup" },
+        "Cooldown" : "300",
+        "ScalingAdjustment" : "1"
+        }
+  },
+```
+will increase only 1 and wait 5 minutes before adding another one if necesseray
+      
+
+Define a push notification by mail 
+
+```sh
+"MySNSTopic" : {
+      "Type" : "AWS::SNS::Topic",
+        "Properties" : {
+          "Subscription" : [ {
+            "Endpoint" : "nospam@gmail.com",
+            "Protocol" : "email"
+          } ]
+        }
+      },
+```
+
+And the most important point define the alaerm and the actions taken :
+```sh
+AWS::CloudWatch::Alarm
+"AlarmActions" : [ { "Ref" : "MySNSTopic" }, { "Ref": "ScaleUpPolicy" } ],
+"Threshold" : "70",
+```
+CPU > 70%
+
+
+And finally objects/variable to retreive from the stack console :
+```sh
+
+
+```
+"Outputs" : {
+"PrivateIP" : {
+       "Description" : "Private IP address of the newly created EC2 instance",
+       "Value" : { "Fn::GetAtt" : [ "ClojureCollector1", "PrivateIp" ] }
+     },
+}
 
 ### Requierements
 You will need a keypair named ec2key to do that

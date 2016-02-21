@@ -68,7 +68,8 @@
              "sudo chown ec2-user /home/ec2-user/.ssh/config \n",
              "sudo chmod 400 /home/ec2-user/.ssh/config \n",
              "/usr/local/bin/ansible-playbook /etc/ansible/playbooks/host/host.yml \n",
-             "/usr/local/bin/ansible-playbook /etc/ansible/playbooks/tomcat/tomcat.yml \n"
+             "sleep 60 \n",
+             "/usr/local/bin/ansible-playbook /etc/ansible/playbooks/tomcat/tomcat.yml\n"
 
             ]]}}
           }

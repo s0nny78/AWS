@@ -1,4 +1,4 @@
-# AWS Stack
+# AWS Stack :)
 
 ### Description
 The goal of this stack is to obtain an ansible server and a webserver fully redundant with alerting and scalling
